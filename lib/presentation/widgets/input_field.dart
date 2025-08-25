@@ -82,10 +82,10 @@ class _InputFieldState extends State<InputField> {
             Material(
               color: inputColor,
               shape: const CircleBorder(),
-              child: IconButton(
-                icon: Icon(Icons.mic, color: iconColor),
-                onPressed: () {},
-              ),
+              // child: IconButton(
+              //   icon: Icon(Icons.mic, color: iconColor),
+              //   onPressed: () {},
+              // ),
             ),
             const SizedBox(width: 6),
 
