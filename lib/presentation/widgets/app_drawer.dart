@@ -56,8 +56,8 @@ class _AppDrawerState extends State<AppDrawer> {
   }
 
   Future<void> _logout(BuildContext context) async {
-    // final prefs = await SharedPreferences.getInstance();
-    // await prefs.clear(); // xoá token, user info, thread_id...
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); // xoá token, user info, thread_id...
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
