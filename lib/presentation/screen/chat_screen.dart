@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../widgets/chat_message.dart';
 import '../widgets/input_field.dart';
 import '../widgets/app_drawer.dart';
-
+import '../../data/api/chat_api.dart'; // Import API
+import '../widgets/typing_indicator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -14,19 +16,101 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<Map<String, String>> _messages = [
     {
       "role": "bot",
-      "content": "Xin chào! Tôi là phụ tá AI thông minh của bạn đây. "
-          "Xem tôi có thể giúp gì được nào?"
+      "content": "Xin chào! "
+          "Tôi là trợ lý AI của bạn. Rất vui được hỗ trợ bạn - Bạn cần tôi giúp gì hôm nay?"
     }
   ];
 
-  bool _isDarkMode = true; // mặc định là dark mode
+  String? _currentRole;
+  bool _isDarkMode = true;
+  bool _isLoading = false;
+  bool _isTyping = false;
+  final ScrollController _scrollController = ScrollController();
 
-  void _sendMessage(String text) {
-    setState(() {
-      _messages.add({"role": "user", "content": text});
-      _messages.add({"role": "bot", "content": "Bạn vừa nói: $text"});
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
+  @override
+  void initState() {
+    super.initState();
+    _loadRole();
+  }
+
+  Future<void> _loadRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = prefs.getString("selected_role_name") ?? "Chưa chọn vai trò";
+
+    print("👉 Role hiện tại: $role"); // in ra console để kiểm tra
+
+    setState(() {
+      _currentRole = role;
+    });
+  }
+
+  void _sendMessage(String text) async {
+    if (text.trim().isEmpty) return;
+
+    setState(() {
+      _messages.add({"role": "user", "content": text});
+      _isTyping = true; // bot bắt đầu gõ
+    });
+    _scrollToBottom(); // cuộn xuống cuối
+
+    try {
+      final response = await ChatApi.sendMessage(text);
+
+      final explanation = response["explanation"] ??
+          response["summary"] ??
+          "Không có phản hồi từ bot";
+
+      final List<dynamic>? questionSuggestion = response["questionSuggestion"];
+
+      setState(() {
+        _isTyping = false;
+
+        // Thêm nội dung trả lời bot
+        _messages.add({"role": "bot", "type": "text", "content": explanation});
+
+        // Nếu có gợi ý câu hỏi, thêm vào dưới dạng suggestion
+        if (questionSuggestion != null && questionSuggestion.isNotEmpty) {
+          // Thêm tin nhắn giới thiệu
+          _messages.add({
+            "role": "bot",
+            "type": "text",
+            "content": "💡 Mình gợi ý bạn một số câu hỏi nhé:"
+          });
+
+          for (var suggestion in questionSuggestion) {
+            _messages.add({
+              "role": "bot",
+              "type": "suggestion",
+              "content": suggestion
+            });
+          }
+        }
+      });
+
+      _scrollToBottom();
+
+    } catch (e) {
+      setState(() {
+        _messages.add({"role": "bot", "content": "Lỗi kết nối API: $e"});
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
 
   void _toggleTheme() {
     setState(() {
@@ -37,10 +121,42 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: const AppDrawer(),
+      resizeToAvoidBottomInset: true,
+      drawer: AppDrawer(
+        onThreadSelected: (threadId) async {
+          setState(() {
+            _isLoading = true;
+            _messages.clear();
+          });
+
+          try {
+            final response = await ChatApi.getThreadDetail(threadId);
+
+            setState(() {
+              _messages.addAll(response.map((msg) => {
+                "role": msg["role"],
+                "content": msg["content"],
+              }));
+            });
+          } catch (e) {
+            setState(() {
+              _messages.add({
+                "role": "bot",
+                "content": "Lỗi khi tải đoạn chat: $e",
+              });
+            });
+          } finally {
+            setState(() => _isLoading = false);
+          }
+        },
+        onRoleChanged: _loadRole,
+
+      ),
+
       appBar: AppBar(
         backgroundColor: _isDarkMode ? Colors.black : Colors.white,
-        iconTheme: IconThemeData(color: _isDarkMode ? Colors.white : Colors.black),
+        iconTheme:
+        IconThemeData(color: _isDarkMode ? Colors.white : Colors.black),
         title: Text(
           "RHM Chatbot",
           style: TextStyle(
@@ -49,24 +165,19 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
         actions: [
-          // Nút đăng xuất
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: _isDarkMode ? Colors.white : Colors.black,
-              backgroundColor: _isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                _currentRole ?? "Chưa chọn vai trò",
+                style: TextStyle(
+                  color: _isDarkMode ? Colors.white : Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            child: const Text("Đăng xuất"),
           ),
           const SizedBox(width: 8),
-
-          // Nút đổi theme
           IconButton(
             icon: Icon(
               _isDarkMode ? Icons.dark_mode : Icons.light_mode,
@@ -76,27 +187,61 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           const SizedBox(width: 8),
         ],
+
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final msg = _messages[index];
-                return ChatMessage(
-                  text: msg["content"]!,
-                  isUser: msg["role"] == "user",
-                  // isDarkMode: _isDarkMode, // truyền theme vào
-                );
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage("assets/bg.jpg"),
+            fit: BoxFit.cover, // phủ toàn màn hình
+          ),
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(12),
+                itemCount: _messages.length + (_isTyping ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (_isTyping && index == _messages.length) {
+                    return const TypingIndicator(); // hiển thị typing ở cuối
+                  }
+                  final msg = _messages[index];
+                  return ChatMessage(
+                    text: msg["content"]!,
+                    isUser: msg["role"] == "user",
+                    isSuggestion: msg["type"] == "suggestion",
+                    onTapSuggestion: msg["type"] == "suggestion"
+                        ? () => _sendMessage(msg["content"]!)
+                        : null,
+                  );
+
+                },
+              ),
+            ),
+
+
+
+
+            // if (_isLoading) const LinearProgressIndicator(),
+            InputField(
+              onSend: _sendMessage,
+              isDarkMode: _isDarkMode,
+              onThreadCreated: (id, name) {
+                setState(() {
+                  // Xóa tin nhắn cũ và reset với lời chào ban đầu
+                  _messages.clear();
+                  _messages.add({
+                    "role": "bot",
+                    "content": "Bạn đang ở cuộc trò chuyện mới: $name"
+                  });
+                });
               },
             ),
-          ),
-          InputField(onSend: _sendMessage, isDarkMode: _isDarkMode),
-        ],
+          ],
+        ),
       ),
-      backgroundColor: _isDarkMode ? Colors.black : Colors.white,
     );
   }
 }
