@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../data/api/ThreadApi.dart';
 import '../../core/constants.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -129,8 +130,8 @@ class _LoginScreenState extends State<LoginScreen> {
         // Tạo thread patient_dental
         try {
           final thread = await ThreadApi.createThread("Cuộc trò chuyện mới");
-          if (thread.id != null) {
-            await prefs.setString("thread_id", thread.id!);
+          if (thread.id.isNotEmpty) {
+            await prefs.setString("thread_id", thread.id);
             debugPrint("✅ Tạo thread patient_dental thành công: ${thread.id}");
           }
         } catch (e) {
@@ -150,10 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showError(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
       );
     }
   }
@@ -203,10 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 16),
                   const Text(
                     "RHM Chatbot",
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   const Text(
@@ -250,24 +245,38 @@ class _LoginScreenState extends State<LoginScreen> {
                         backgroundColor: Colors.blue,
                         disabledBackgroundColor: Colors.blue.shade300,
                       ),
-                      child: _isLoading
-                          ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                          : const Text(
-                        "Đăng nhập",
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child:
+                          _isLoading
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : const Text(
+                                "Đăng nhập",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  /// Thêm chữ Hoặc ngăn cách
+                  Row(
+                    children: const [
+                      Expanded(child: Divider(thickness: 1)),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Text("Hoặc"),
+                      ),
+                      Expanded(child: Divider(thickness: 1)),
+                    ],
                   ),
                   const SizedBox(height: 16),
 
@@ -276,17 +285,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: _isGoogleLoading ? null : loginWithGoogle,
-                      icon: _isGoogleLoading
-                          ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                          : Image.asset(
-                        "assets/google_logo.png",
-                        height: 20,
-                        width: 20,
-                      ),
+                      icon:
+                          _isGoogleLoading
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : Image.asset(
+                                "assets/google_logo.png",
+                                height: 20,
+                                width: 20,
+                              ),
                       label: Text(
                         _isGoogleLoading
                             ? "Đang đăng nhập..."

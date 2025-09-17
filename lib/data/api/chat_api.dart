@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants.dart';
+
 class ChatApi {
   static const String _baseUrl = "${AppConstants.baseUrl}chat";
 
@@ -15,10 +16,12 @@ class ChatApi {
     debugPrint("roleId: $roleId");
     debugPrint("All prefs: ${prefs.getKeys()}");
 
-    debugPrint("Tên đoạn chat: ${name}");
+    debugPrint("Tên đoạn chat: $name");
 
     if (token == null || sessionId == null || roleId == null) {
-      throw Exception("Bạn chưa chọn vai trò hoặc là tạo cuộc trò chuyện. Hãy thử lại nhé !😃");
+      throw Exception(
+        "Bạn chưa chọn vai trò hoặc là tạo cuộc trò chuyện. Hãy thử lại nhé !😃",
+      );
     }
 
     final response = await http.post(
@@ -38,12 +41,15 @@ class ChatApi {
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
-      throw Exception("Failed to send message: ${response.statusCode} - ${response.body}");
+      throw Exception(
+        "Failed to send message: ${response.statusCode} - ${response.body}",
+      );
     }
   }
 
-
-  static Future<List<Map<String, dynamic>>> getThreadDetail(String threadId) async {
+  static Future<List<Map<String, dynamic>>> getThreadDetail(
+    String threadId,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("auth_token");
 

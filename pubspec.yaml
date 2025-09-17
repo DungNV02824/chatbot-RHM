@@ -30,7 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  intl: ^0.19.0
   flutter_markdown: ^0.6.21
   http: ^1.1.0
   flutter_secure_storage: ^9.2.2
