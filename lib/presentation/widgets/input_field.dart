@@ -134,6 +134,10 @@ class _InputFieldState extends State<InputField> {
                     style: TextStyle(
                       color: widget.isDarkMode ? Colors.white : Colors.black,
                     ),
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    minLines: 1,
+                    maxLines: 6,
                     decoration: InputDecoration(
                       hintText: "Nhập tin nhắn...",
                       hintStyle: TextStyle(
@@ -141,8 +145,10 @@ class _InputFieldState extends State<InputField> {
                             widget.isDarkMode ? Colors.white70 : Colors.black54,
                       ),
                       border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    onSubmitted: (_) => _handleSend(),
+                    // Cho phép xuống dòng khi nhấn Enter; dùng nút gửi để gửi
                   ),
                 ),
               ),

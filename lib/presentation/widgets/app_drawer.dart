@@ -60,11 +60,22 @@ class _AppDrawerState extends State<AppDrawer> {
     await prefs.clear(); // xoá token, user info, thread_id...
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Đã đăng xuất"),
-        backgroundColor: Colors.redAccent, // 👈 đổi màu nền
-        behavior: SnackBarBehavior.floating, // 👈 nổi trên nội dung
-        duration: Duration(seconds: 2), // 👈 thời gian hiển thị
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.logout, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            const Text(
+              "Đã đăng xuất",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red.shade600,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
       ),
     );
 
@@ -127,9 +138,24 @@ class _AppDrawerState extends State<AppDrawer> {
     final newName = _renameController.text.trim();
     if (newName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Vui lòng nhập tên chat"),
-          backgroundColor: Colors.redAccent,
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              const Text(
+                "Vui lòng nhập tên chat",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade600,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
         ),
       );
       return;
@@ -176,9 +202,22 @@ class _AppDrawerState extends State<AppDrawer> {
     // làm mới nền để đồng bộ với server nhưng không chặn UI
     _refreshChatList();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Đổi tên thành công"),
-        backgroundColor: Colors.green,
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            const Text(
+              "Đổi tên thành công",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.green.shade600,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
       ),
     );
   }
@@ -195,20 +234,27 @@ class _AppDrawerState extends State<AppDrawer> {
     Navigator.pop(context); // đóng drawer
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          "Đã chọn đoạn chat $threadName",
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+        content: Row(
+          children: [
+            Icon(Icons.chat_bubble_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "Đã chọn đoạn chat $threadName",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
-        backgroundColor: Colors.blueAccent, // 👈 đổi màu nền
-        behavior: SnackBarBehavior.floating, // 👈 cho nó nổi (tùy chọn)
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12), // 👈 bo góc
-        ),
-        margin: const EdgeInsets.all(12), // 👈 đặt margin
-        duration: const Duration(seconds: 2), // 👈 thời gian hiển thị
+        backgroundColor: Colors.blue.shade600,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
       ),
     );
   }
@@ -217,9 +263,27 @@ class _AppDrawerState extends State<AppDrawer> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("auth_token");
     if (token == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Bạn chưa đăng nhập!")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              const Text(
+                "Bạn chưa đăng nhập!",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red.shade600,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
       return;
     }
 
@@ -236,6 +300,8 @@ class _AppDrawerState extends State<AppDrawer> {
       final data = jsonDecode(response.body);
       final threadId = data["id"];
       await prefs.setString("thread_id", threadId);
+      // Đánh dấu là thread mới để ChatScreen hiển thị lời chào mặc định
+      await prefs.setBool("thread_is_new", true);
       await prefs.remove("thread_name"); // sẽ auto đặt theo tin nhắn đầu tiên
 
       // refresh list nhẹ nhàng
@@ -248,14 +314,50 @@ class _AppDrawerState extends State<AppDrawer> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Đã tạo cuộc trò chuyện mới"),
-          backgroundColor: Colors.blueAccent,
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.add_circle_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              const Text(
+                "Đã tạo cuộc trò chuyện mới",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.green.shade600,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Lỗi tạo thread: ${response.body}")),
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  "Lỗi tạo thread",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red.shade600,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
       );
     }
   }
@@ -314,9 +416,31 @@ class _AppDrawerState extends State<AppDrawer> {
                   final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(context); // đóng Drawer trước
                   messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text("Tính năng đang được phát triển"),
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(
+                            Icons.construction,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            "Tính năng đang được phát triển",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: Colors.orange.shade600,
                       behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      margin: const EdgeInsets.all(16),
                     ),
                   );
                 },
@@ -480,14 +604,65 @@ class _AppDrawerState extends State<AppDrawer> {
                                               bool
                                             >(
                                               context: context,
+                                              barrierDismissible: false,
                                               builder:
                                                   (context) => AlertDialog(
-                                                    title: const Text(
-                                                      "Xóa đoạn chat",
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            16,
+                                                          ),
                                                     ),
-                                                    content: Text(
-                                                      "Bạn có chắc muốn xóa '${thread.name}' không?",
+                                                    title: Row(
+                                                      children: [
+                                                        Icon(
+                                                          Icons
+                                                              .warning_amber_rounded,
+                                                          color:
+                                                              Colors
+                                                                  .orange
+                                                                  .shade600,
+                                                          size: 28,
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 12,
+                                                        ),
+                                                        Expanded(
+                                                          child: Text(
+                                                            "Xóa cuộc trò chuyện?",
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontSize: 18,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                ),
+                                                            maxLines: 2,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
+                                                    content: const Text(
+                                                      "Điều này xóa mất cuộc trò chuyện.",
+                                                      style: TextStyle(
+                                                        fontSize: 16,
+                                                        color: Colors.black87,
+                                                      ),
+                                                      maxLines: 3,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      softWrap: true,
+                                                    ),
+                                                    actionsPadding:
+                                                        const EdgeInsets.fromLTRB(
+                                                          16,
+                                                          0,
+                                                          16,
+                                                          16,
+                                                        ),
                                                     actions: [
                                                       TextButton(
                                                         onPressed:
@@ -495,23 +670,63 @@ class _AppDrawerState extends State<AppDrawer> {
                                                               context,
                                                               false,
                                                             ),
+                                                        style: TextButton.styleFrom(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 24,
+                                                                vertical: 12,
+                                                              ),
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  8,
+                                                                ),
+                                                          ),
+                                                        ),
                                                         child: const Text(
                                                           "Hủy",
+                                                          style: TextStyle(
+                                                            fontSize: 16,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color: Colors.grey,
+                                                          ),
                                                         ),
                                                       ),
+                                                      const SizedBox(width: 8),
                                                       ElevatedButton(
                                                         onPressed:
                                                             () => Navigator.pop(
                                                               context,
                                                               true,
                                                             ),
-                                                        style:
-                                                            ElevatedButton.styleFrom(
-                                                              backgroundColor:
-                                                                  Colors.red,
-                                                            ),
+                                                        style: ElevatedButton.styleFrom(
+                                                          backgroundColor:
+                                                              Colors
+                                                                  .red
+                                                                  .shade600,
+                                                          foregroundColor:
+                                                              Colors.white,
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 24,
+                                                                vertical: 12,
+                                                              ),
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  8,
+                                                                ),
+                                                          ),
+                                                          elevation: 2,
+                                                        ),
                                                         child: const Text(
                                                           "Xóa",
+                                                          style: TextStyle(
+                                                            fontSize: 16,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
                                                         ),
                                                       ),
                                                     ],
@@ -519,23 +734,46 @@ class _AppDrawerState extends State<AppDrawer> {
                                             );
 
                                             if (confirm == true) {
-                                              // gọi API xóa thread
-                                              await ThreadApi.deleteThread(
-                                                thread.id,
-                                              );
-                                              _refreshChatList(); // refresh danh sách
+                                              final deletedId = thread.id;
 
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    "Xóa cuộc trò chuyện thành công",
-                                                  ),
-                                                  backgroundColor:
-                                                      Colors.redAccent,
-                                                ),
-                                              );
+                                              // Optimistic update: remove immediately from UI and cache
+                                              setState(() {
+                                                if (_cachedThreads != null) {
+                                                  _cachedThreads =
+                                                      _cachedThreads!
+                                                          .where(
+                                                            (t) =>
+                                                                t.id !=
+                                                                deletedId,
+                                                          )
+                                                          .toList();
+                                                }
+                                                if (_sharedThreadsCache !=
+                                                    null) {
+                                                  _sharedThreadsCache =
+                                                      _sharedThreadsCache!
+                                                          .where(
+                                                            (t) =>
+                                                                t.id !=
+                                                                deletedId,
+                                                          )
+                                                          .toList();
+                                                }
+                                                // Push updated list into FutureBuilder to render immediately
+                                                _threadsFuture = Future.value(
+                                                  _cachedThreads,
+                                                );
+                                              });
+
+                                              // Call API in background, then silently refresh from server
+                                              try {
+                                                await ThreadApi.deleteThread(
+                                                  deletedId,
+                                                );
+                                                _refreshChatList();
+                                              } catch (_) {
+                                                // Ignore errors for now as per requirement (no snackbar)
+                                              }
                                             }
                                           }
                                         },

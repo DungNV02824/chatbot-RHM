@@ -18,14 +18,12 @@ class _ChatScreenState extends State<ChatScreen> {
     {
       "role": "bot",
       "content":
-          "Xin chào! "
-          "Tôi là trợ lý AI của bạn. Rất vui được hỗ trợ bạn - Bạn cần tôi giúp gì hôm nay?",
+          "Xin chào 😊! Tôi là trợ lý AI của bạn đây. Rất vui được hỗ trợ bạn - Bạn cần tôi giúp gì hôm nay?",
     },
   ];
 
   String? _currentRole;
   bool _isDarkMode = true;
-  bool _isLoading = false;
   bool _isTyping = false;
   final ScrollController _scrollController = ScrollController();
 
@@ -45,13 +43,34 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _loadRole();
+    _checkIfNewThreadAndShowGreeting();
+  }
+
+  Future<void> _checkIfNewThreadAndShowGreeting() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isNew = prefs.getBool("thread_is_new") ?? false;
+      if (!isNew) return;
+
+      // Reset flag so it only shows once
+      await prefs.setBool("thread_is_new", false);
+
+      setState(() {
+        _messages.clear();
+        _messages.add({
+          "role": "bot",
+          "content":
+              "Xin chào 😊! Tôi là trợ lý AI của bạn đây. Rất vui được hỗ trợ bạn - Bạn cần tôi giúp gì hôm nay?",
+        });
+      });
+    } catch (_) {}
   }
 
   Future<void> _loadRole() async {
     final prefs = await SharedPreferences.getInstance();
     final role = prefs.getString("selected_role_name") ?? "Chưa chọn vai trò";
 
-    print("👉 Role hiện tại: $role"); // in ra console để kiểm tra
+    debugPrint("👉 Role hiện tại: $role"); // in ra console để kiểm tra
 
     setState(() {
       _currentRole = role;
@@ -120,9 +139,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _messages.add({"role": "bot", "content": "Lỗi kết nối API: $e"});
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      // Cleanup if needed
     }
   }
 
@@ -139,7 +156,6 @@ class _ChatScreenState extends State<ChatScreen> {
       drawer: AppDrawer(
         onThreadSelected: (threadId) async {
           setState(() {
-            _isLoading = true;
             _messages.clear();
           });
 
@@ -161,7 +177,7 @@ class _ChatScreenState extends State<ChatScreen> {
               });
             });
           } finally {
-            setState(() => _isLoading = false);
+            // Thread loaded
           }
         },
         onRoleChanged: _loadRole,
@@ -245,7 +261,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   _messages.clear();
                   _messages.add({
                     "role": "bot",
-                    "content": "Bạn đang ở cuộc trò chuyện mới: $name",
+                    "content":
+                        "Xin chào 😊! Tôi là trợ lý AI của bạn. Rất vui được hỗ trợ bạn - Bạn cần tôi giúp gì hôm nay?",
                   });
                 });
               },

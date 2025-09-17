@@ -1,13 +1,12 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/ThreadModel.dart';
 import '../../core/constants.dart';
+
 class ThreadApi {
   static const String _baseUrl = "${AppConstants.baseUrl}threads/";
-
-
-
 
   // 📌 Tạo thread mới (gọi sau khi login thành công)
   static Future<ThreadModel> createThread(String name) async {
@@ -30,32 +29,29 @@ class ThreadApi {
       final data = jsonDecode(response.body);
       return ThreadModel.fromJson(data);
     } else {
-      throw Exception("Lỗi tạo thread: ${response.statusCode} - ${response.body}");
+      throw Exception(
+        "Lỗi tạo thread: ${response.statusCode} - ${response.body}",
+      );
     }
   }
 
   static Future<List<ThreadModel>> fetchThreads() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("auth_token");
-    print("DEBUG fetchThreads TOKEN: $token");
+    debugPrint("DEBUG fetchThreads TOKEN: $token");
     final response = await http.get(
       Uri.parse(_baseUrl),
-      headers: {
-        "accept": "application/json",
-        "Authorization": "Bearer $token",
-      },
+      headers: {"accept": "application/json", "Authorization": "Bearer $token"},
     );
-
-
 
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
       return data.map((e) => ThreadModel.fromJson(e)).toList();
-
     } else {
       throw Exception("Failed to fetch threads: ${response.statusCode}");
     }
   }
+
   static Future<void> renameThread(String id, String newName) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("auth_token");
@@ -83,5 +79,4 @@ class ThreadApi {
       throw Exception("Lỗi xóa: ${response.body}");
     }
   }
-
 }
