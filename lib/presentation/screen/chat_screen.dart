@@ -5,6 +5,7 @@ import '../widgets/app_drawer.dart';
 import '../../data/api/chat_api.dart'; // Import API
 import '../widgets/typing_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -16,9 +17,10 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<Map<String, String>> _messages = [
     {
       "role": "bot",
-      "content": "Xin chào! "
-          "Tôi là trợ lý AI của bạn. Rất vui được hỗ trợ bạn - Bạn cần tôi giúp gì hôm nay?"
-    }
+      "content":
+          "Xin chào! "
+          "Tôi là trợ lý AI của bạn. Rất vui được hỗ trợ bạn - Bạn cần tôi giúp gì hôm nay?",
+    },
   ];
 
   String? _currentRole;
@@ -38,6 +40,7 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     });
   }
+
   @override
   void initState() {
     super.initState();
@@ -64,10 +67,23 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     _scrollToBottom(); // cuộn xuống cuối
 
+    // Nếu là tin nhắn đầu tiên sau khi tạo thread mới, auto đặt tên thread
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final currentName = prefs.getString("thread_name");
+      final threadId = prefs.getString("thread_id");
+      if (threadId != null && (currentName == null || currentName.isEmpty)) {
+        final autoName = text.trim().split(" ").take(8).join(" ");
+        // Lưu tên để hiển thị về sau; API rename để đồng bộ backend nếu có endpoint
+        await prefs.setString("thread_name", autoName);
+      }
+    } catch (_) {}
+
     try {
       final response = await ChatApi.sendMessage(text);
 
-      final explanation = response["explanation"] ??
+      final explanation =
+          response["explanation"] ??
           response["summary"] ??
           "Không có phản hồi từ bot";
 
@@ -85,21 +101,20 @@ class _ChatScreenState extends State<ChatScreen> {
           _messages.add({
             "role": "bot",
             "type": "text",
-            "content": "💡 Mình gợi ý bạn một số câu hỏi nhé:"
+            "content": "💡 Mình gợi ý bạn một số câu hỏi nhé:",
           });
 
           for (var suggestion in questionSuggestion) {
             _messages.add({
               "role": "bot",
               "type": "suggestion",
-              "content": suggestion
+              "content": suggestion,
             });
           }
         }
       });
 
       _scrollToBottom();
-
     } catch (e) {
       setState(() {
         _messages.add({"role": "bot", "content": "Lỗi kết nối API: $e"});
@@ -110,7 +125,6 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     }
   }
-
 
   void _toggleTheme() {
     setState(() {
@@ -133,10 +147,11 @@ class _ChatScreenState extends State<ChatScreen> {
             final response = await ChatApi.getThreadDetail(threadId);
 
             setState(() {
-              _messages.addAll(response.map((msg) => {
-                "role": msg["role"],
-                "content": msg["content"],
-              }));
+              _messages.addAll(
+                response.map(
+                  (msg) => {"role": msg["role"], "content": msg["content"]},
+                ),
+              );
             });
           } catch (e) {
             setState(() {
@@ -150,13 +165,13 @@ class _ChatScreenState extends State<ChatScreen> {
           }
         },
         onRoleChanged: _loadRole,
-
       ),
 
       appBar: AppBar(
         backgroundColor: _isDarkMode ? Colors.black : Colors.white,
-        iconTheme:
-        IconThemeData(color: _isDarkMode ? Colors.white : Colors.black),
+        iconTheme: IconThemeData(
+          color: _isDarkMode ? Colors.white : Colors.black,
+        ),
         title: Text(
           "RHM Chatbot",
           style: TextStyle(
@@ -187,7 +202,6 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           const SizedBox(width: 8),
         ],
-
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -212,17 +226,14 @@ class _ChatScreenState extends State<ChatScreen> {
                     text: msg["content"]!,
                     isUser: msg["role"] == "user",
                     isSuggestion: msg["type"] == "suggestion",
-                    onTapSuggestion: msg["type"] == "suggestion"
-                        ? () => _sendMessage(msg["content"]!)
-                        : null,
+                    onTapSuggestion:
+                        msg["type"] == "suggestion"
+                            ? () => _sendMessage(msg["content"]!)
+                            : null,
                   );
-
                 },
               ),
             ),
-
-
-
 
             // if (_isLoading) const LinearProgressIndicator(),
             InputField(
@@ -234,7 +245,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   _messages.clear();
                   _messages.add({
                     "role": "bot",
-                    "content": "Bạn đang ở cuộc trò chuyện mới: $name"
+                    "content": "Bạn đang ở cuộc trò chuyện mới: $name",
                   });
                 });
               },
