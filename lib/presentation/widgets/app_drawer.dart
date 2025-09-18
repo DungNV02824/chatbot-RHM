@@ -7,7 +7,6 @@ import '../../models/ThreadModel.dart';
 import '../screen/RoleSettingsScreen.dart';
 import 'package:chatbot/routes/app_routes.dart';
 import '../../core/constants.dart';
-import 'package:intl/intl.dart';
 
 class AppDrawer extends StatefulWidget {
   final Function(String) onThreadSelected;
@@ -542,21 +541,7 @@ class _AppDrawerState extends State<AppDrawer> {
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
-                              subtitle:
-                                  isEditing
-                                      ? null
-                                      : Text(
-                                        thread.updatedAt != null
-                                            ? DateFormat("dd/MM/yyyy").format(
-                                              thread.updatedAt!.toLocal(),
-                                            )
-                                            : "Chưa có cập nhật",
-                                        style: const TextStyle(
-                                          color: Colors.white60,
-                                          fontSize: 12,
-                                          fontStyle: FontStyle.italic,
-                                        ),
-                                      ),
+                              subtitle: null,
 
                               trailing:
                                   isEditing

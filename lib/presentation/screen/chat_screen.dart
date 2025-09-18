@@ -3,6 +3,7 @@ import '../widgets/chat_message.dart';
 import '../widgets/input_field.dart';
 import '../widgets/app_drawer.dart';
 import '../../data/api/chat_api.dart'; // Import API
+import '../../data/api/ThreadApi.dart'; // Import ThreadApi
 import '../widgets/typing_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -23,6 +24,7 @@ class _ChatScreenState extends State<ChatScreen> {
   ];
 
   String? _currentRole;
+  String? _currentThreadName;
   bool _isDarkMode = true;
   bool _isTyping = false;
   final ScrollController _scrollController = ScrollController();
@@ -43,6 +45,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _loadRole();
+    _loadThreadName();
     _checkIfNewThreadAndShowGreeting();
   }
 
@@ -87,6 +90,17 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  Future<void> _loadThreadName() async {
+    final prefs = await SharedPreferences.getInstance();
+    final threadName = prefs.getString("thread_name");
+
+    setState(() {
+      _currentThreadName = threadName;
+    });
+
+    print("👉 Thread name hiện tại: $threadName");
+  }
+
   void _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
@@ -97,16 +111,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom(); // cuộn xuống cuối
 
     // Nếu là tin nhắn đầu tiên sau khi tạo thread mới, auto đặt tên thread
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final currentName = prefs.getString("thread_name");
-      final threadId = prefs.getString("thread_id");
-      if (threadId != null && (currentName == null || currentName.isEmpty)) {
-        final autoName = text.trim().split(" ").take(8).join(" ");
-        // Lưu tên để hiển thị về sau; API rename để đồng bộ backend nếu có endpoint
-        await prefs.setString("thread_name", autoName);
-      }
-    } catch (_) {}
+    await _autoRenameThreadIfNeeded(text);
 
     try {
       final response = await ChatApi.sendMessage(text);
@@ -159,6 +164,48 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  /// Tự động đặt tên thread dựa trên tin nhắn đầu tiên của người dùng
+  Future<void> _autoRenameThreadIfNeeded(String message) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final currentName = prefs.getString("thread_name");
+      final threadId = prefs.getString("thread_id");
+
+      // Chỉ đặt tên nếu chưa có tên hoặc tên hiện tại là "Cuộc trò chuyện mới"
+      if (threadId != null &&
+          (currentName == null ||
+              currentName.isEmpty ||
+              currentName == "Cuộc trò chuyện mới")) {
+        // Tạo tên từ 5-8 từ đầu tiên của tin nhắn
+        final words = message.trim().split(RegExp(r'\s+'));
+        final autoName = words.take(8).join(" ");
+
+        // Đảm bảo tên không quá dài (tối đa 50 ký tự)
+        final finalName =
+            autoName.length > 50 ? "${autoName.substring(0, 47)}..." : autoName;
+
+        // Lưu tên local ngay lập tức
+        await prefs.setString("thread_name", finalName);
+
+        // Cập nhật UI ngay lập tức
+        setState(() {
+          _currentThreadName = finalName;
+        });
+
+        // Gọi API để đồng bộ với backend (không chặn UI)
+        ThreadApi.renameThread(threadId, finalName).catchError((error) {
+          print("Lỗi khi đồng bộ tên thread với backend: $error");
+          // Không hiển thị lỗi cho người dùng vì đây là tính năng tự động
+        });
+
+        print("✅ Đã tự động đặt tên thread: '$finalName'");
+      }
+    } catch (e) {
+      print("Lỗi khi auto rename thread: $e");
+      // Không hiển thị lỗi cho người dùng vì đây là tính năng tự động
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -179,6 +226,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               );
             });
+
+            // Cập nhật tên thread hiện tại
+            _loadThreadName();
           } catch (e) {
             setState(() {
               _messages.add({
@@ -199,7 +249,7 @@ class _ChatScreenState extends State<ChatScreen> {
           color: _isDarkMode ? Colors.white : Colors.black,
         ),
         title: Text(
-          "RHM Chatbot",
+          _currentThreadName ?? "RHM Chatbot",
           style: TextStyle(
             color: _isDarkMode ? Colors.white : Colors.black,
             fontWeight: FontWeight.bold,
@@ -274,6 +324,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     "content":
                         "Xin chào 😊! Tôi là trợ lý AI của bạn. Rất vui được hỗ trợ bạn - Bạn cần tôi giúp gì hôm nay?",
                   });
+
+                  // Reset tên thread về null để sẵn sàng cho auto rename
+                  _currentThreadName = null;
                 });
               },
             ),
