@@ -68,9 +68,19 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _loadRole() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // Nếu chưa có key thì gán mặc định
+    if (!prefs.containsKey("selected_role_name")) {
+      await prefs.setString("selected_role_id", "doctor_endocrine"); // id cứng
+      await prefs.setString(
+        "selected_role_name",
+        "Bác sĩ Nội tiết",
+      ); // tên hiển thị
+    }
+
     final role = prefs.getString("selected_role_name") ?? "Chưa chọn vai trò";
 
-    debugPrint("👉 Role hiện tại: $role"); // in ra console để kiểm tra
+    print("👉 Role hiện tại: $role"); // in ra console để kiểm tra
 
     setState(() {
       _currentRole = role;
