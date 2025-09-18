@@ -214,7 +214,7 @@ class _AppDrawerState extends State<AppDrawer> {
             ),
           ],
         ),
-        backgroundColor: Colors.green.shade600,
+        backgroundColor: Colors.blueAccent,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -316,17 +316,11 @@ class _AppDrawerState extends State<AppDrawer> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.add_circle_outline, color: Colors.white, size: 20),
-              const SizedBox(width: 12),
-              const Text(
-                "Đã tạo cuộc trò chuyện mới",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-            ],
+          content: const Text(
+            "Đã tạo cuộc trò chuyện mới",
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
-          backgroundColor: Colors.green.shade600,
+          backgroundColor: Colors.blueAccent,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
           shape: RoundedRectangleBorder(

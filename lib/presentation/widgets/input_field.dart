@@ -61,8 +61,17 @@ class _InputFieldState extends State<InputField> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Đã tạo cuộc trò chuyện mới"),
+          content: Text(
+            "Đã tạo cuộc trò chuyện mới",
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
           backgroundColor: Colors.blueAccent,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+          ),
+          margin: EdgeInsets.all(16),
         ),
       );
     } else {
