@@ -11,14 +11,17 @@ import '../../core/constants.dart';
 class AppDrawer extends StatefulWidget {
   final Function(String) onThreadSelected;
   final VoidCallback? onRoleChanged;
-  final Function(String id, String name)?
-  onThreadCreated; // 👈 callback báo thread mới
+  final Function(String id, String name)? onThreadCreated;
+  final bool isDarkMode;
+  final VoidCallback? onToggleTheme;
 
   const AppDrawer({
     super.key,
     required this.onThreadSelected,
     this.onRoleChanged,
     this.onThreadCreated,
+    required this.isDarkMode,
+    this.onToggleTheme,
   });
 
   @override
@@ -57,7 +60,9 @@ class _AppDrawerState extends State<AppDrawer> {
 
   Future<void> _logout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear(); // xoá token, user info, thread_id...
+    await prefs.clear();
+
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -79,10 +84,7 @@ class _AppDrawerState extends State<AppDrawer> {
       ),
     );
 
-    // Quay lại màn hình đăng nhập
-    Navigator.of(
-      context,
-    ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
+    Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
   }
 
   Future<void> _loadUserInfo() async {
@@ -94,7 +96,6 @@ class _AppDrawerState extends State<AppDrawer> {
     });
   }
 
-  // Nạp threads và cập nhật cache
   Future<List<ThreadModel>> _loadThreads() async {
     final threads = await ThreadApi.fetchThreads();
     if (mounted) {
@@ -106,37 +107,37 @@ class _AppDrawerState extends State<AppDrawer> {
     return threads;
   }
 
-  // Refresh danh sách nhưng vẫn hiển thị cache trong lúc chờ
   void _refreshChatList() {
     if (_isRefreshing) return;
     _isRefreshing = true;
     ThreadApi.fetchThreads()
         .then((threads) {
-          if (!mounted) return;
-          setState(() {
-            _cachedThreads = threads;
-            _sharedThreadsCache = threads;
-            _isRefreshing = false;
-          });
-        })
+      if (!mounted) return;
+      setState(() {
+        _cachedThreads = threads;
+        _sharedThreadsCache = threads;
+        _isRefreshing = false;
+      });
+    })
         .catchError((_) {
-          if (!mounted) return;
-          setState(() {
-            _isRefreshing = false;
-          });
-        });
+      if (!mounted) return;
+      setState(() {
+        _isRefreshing = false;
+      });
+    });
   }
 
   void _startInlineRename(ThreadModel thread) {
     setState(() {
       _editingThreadId = thread.id;
-      _renameController.text = ""; // để hiện placeholder "Nhập tên chat"
+      _renameController.text = thread.name; // Pre-fill with current name
     });
   }
 
   Future<void> _submitInlineRename(ThreadModel thread) async {
     final newName = _renameController.text.trim();
     if (newName.isEmpty) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -160,47 +161,31 @@ class _AppDrawerState extends State<AppDrawer> {
       );
       return;
     }
+
     await ThreadApi.renameThread(thread.id, newName);
 
-    // Optimistic update: cập nhật ngay tên trong cache và UI
+    if (!mounted) return;
+
+    // Optimistic update
     setState(() {
       if (_cachedThreads != null) {
-        _cachedThreads =
-            _cachedThreads!
-                .map(
-                  (t) =>
-                      t.id == thread.id
-                          ? ThreadModel(
-                            id: t.id,
-                            name: newName,
-                            updatedAt: t.updatedAt,
-                          )
-                          : t,
-                )
-                .toList();
+        _cachedThreads = _cachedThreads!.map((t) => t.id == thread.id
+            ? ThreadModel(id: t.id, name: newName, updatedAt: t.updatedAt)
+            : t).toList();
       }
       if (_sharedThreadsCache != null) {
-        _sharedThreadsCache =
-            _sharedThreadsCache!
-                .map(
-                  (t) =>
-                      t.id == thread.id
-                          ? ThreadModel(
-                            id: t.id,
-                            name: newName,
-                            updatedAt: t.updatedAt,
-                          )
-                          : t,
-                )
-                .toList();
+        _sharedThreadsCache = _sharedThreadsCache!.map((t) => t.id == thread.id
+            ? ThreadModel(id: t.id, name: newName, updatedAt: t.updatedAt)
+            : t).toList();
       }
-      // Push updated list into FutureBuilder to render immediately
       _threadsFuture = Future.value(_cachedThreads);
       _editingThreadId = null;
       _renameController.clear();
     });
-    // làm mới nền để đồng bộ với server nhưng không chặn UI
+
     _refreshChatList();
+
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -222,16 +207,14 @@ class _AppDrawerState extends State<AppDrawer> {
     );
   }
 
-  Future<void> _selectThread(
-    BuildContext context,
-    String threadId,
-    String threadName,
-  ) async {
+  Future<void> _selectThread(BuildContext context, String threadId, String threadName) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString("thread_id", threadId);
     await prefs.setString("thread_name", threadName);
 
-    Navigator.pop(context); // đóng drawer
+    if (!mounted) return;
+    Navigator.pop(context);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -241,10 +224,7 @@ class _AppDrawerState extends State<AppDrawer> {
             Expanded(
               child: Text(
                 "Đã chọn đoạn chat $threadName",
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -263,6 +243,7 @@ class _AppDrawerState extends State<AppDrawer> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("auth_token");
     if (token == null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -278,9 +259,7 @@ class _AppDrawerState extends State<AppDrawer> {
           backgroundColor: Colors.red.shade600,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -300,19 +279,17 @@ class _AppDrawerState extends State<AppDrawer> {
       final data = jsonDecode(response.body);
       final threadId = data["id"];
       await prefs.setString("thread_id", threadId);
-      // Đánh dấu là thread mới để ChatScreen hiển thị lời chào mặc định
       await prefs.setBool("thread_is_new", true);
-      await prefs.remove("thread_name"); // sẽ auto đặt theo tin nhắn đầu tiên
+      await prefs.remove("thread_name");
 
-      // refresh list nhẹ nhàng
       _refreshChatList();
 
-      // đóng Drawer và chuyển qua chat
       if (mounted) {
         Navigator.pop(context);
         widget.onThreadSelected(threadId);
       }
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
@@ -322,13 +299,12 @@ class _AppDrawerState extends State<AppDrawer> {
           backgroundColor: Colors.blueAccent,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -347,9 +323,7 @@ class _AppDrawerState extends State<AppDrawer> {
           backgroundColor: Colors.red.shade600,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 3),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -358,9 +332,15 @@ class _AppDrawerState extends State<AppDrawer> {
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = widget.isDarkMode ? Colors.white : Colors.black87;
+    final subTextColor = widget.isDarkMode ? Colors.white70 : Colors.black54;
+    final iconColor = widget.isDarkMode ? Colors.white : Colors.black87;
+    final dividerColor = widget.isDarkMode ? Colors.white24 : Colors.grey.shade300;
+
     return Drawer(
       child: Container(
-        color: const Color(0xFF1E1E1E),
+        color: bgColor,
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -376,11 +356,11 @@ class _AppDrawerState extends State<AppDrawer> {
                       backgroundColor: Colors.transparent,
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         "ĐH Y Dược Tp Hồ Chí Minh\nKhoa Răng Hàm Mặt",
                         style: TextStyle(
-                          color: Colors.white,
+                          color: textColor,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -388,93 +368,69 @@ class _AppDrawerState extends State<AppDrawer> {
                   ],
                 ),
               ),
-              const Divider(color: Colors.white24),
+              Divider(color: dividerColor),
 
-              // nút tạo thread mới
+              // Menu items
               ListTile(
-                leading: const Icon(Icons.add, color: Colors.white),
-                title: const Text(
-                  "Tạo đoạn chat mới",
-                  style: TextStyle(color: Colors.white),
-                ),
+                leading: Icon(Icons.add, color: iconColor),
+                title: Text("Tạo đoạn chat mới", style: TextStyle(color: textColor)),
                 onTap: _createThread,
               ),
 
               ListTile(
-                leading: const Icon(Icons.search, color: Colors.white),
-                title: const Text(
-                  "Tìm kiếm đoạn chat",
-                  style: TextStyle(color: Colors.white),
-                ),
+                leading: Icon(Icons.search, color: iconColor),
+                title: Text("Tìm kiếm đoạn chat", style: TextStyle(color: textColor)),
                 onTap: () {
                   final messenger = ScaffoldMessenger.of(context);
-                  Navigator.pop(context); // đóng Drawer trước
+                  Navigator.pop(context);
                   messenger.showSnackBar(
                     SnackBar(
                       content: Row(
                         children: [
-                          Icon(
-                            Icons.construction,
-                            color: Colors.white,
-                            size: 20,
-                          ),
+                          Icon(Icons.construction, color: Colors.white, size: 20),
                           const SizedBox(width: 12),
                           const Text(
                             "Tính năng đang được phát triển",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),
                       backgroundColor: Colors.orange.shade600,
                       behavior: SnackBarBehavior.floating,
                       duration: const Duration(seconds: 2),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       margin: const EdgeInsets.all(16),
                     ),
                   );
                 },
               ),
+
               ListTile(
-                leading: const Icon(
-                  Icons.settings_outlined,
-                  color: Colors.white,
-                ),
-                title: const Text(
-                  "Thay đổi vai trò",
-                  style: TextStyle(color: Colors.white),
-                ),
+                leading: Icon(Icons.settings_outlined, color: iconColor),
+                title: Text("Thay đổi vai trò", style: TextStyle(color: textColor)),
                 onTap: () async {
                   final changed = await Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const RoleSettingsScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const RoleSettingsScreen()),
                   );
 
                   if (changed == true && widget.onRoleChanged != null) {
-                    widget.onRoleChanged!(); // callback cho ChatScreen
+                    widget.onRoleChanged!();
                   }
                 },
               ),
 
-              const Divider(color: Colors.white24),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              Divider(color: dividerColor),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Text(
                   "Đoạn Chat",
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(color: subTextColor, fontWeight: FontWeight.bold),
                 ),
               ),
 
-              // Danh sách threads từ API
+              // Threads list
               Expanded(
                 child: FutureBuilder<List<ThreadModel>>(
                   future: _threadsFuture,
@@ -483,24 +439,23 @@ class _AppDrawerState extends State<AppDrawer> {
                       return Center(
                         child: Text(
                           "Lỗi: ${snapshot.error}",
-                          style: const TextStyle(color: Colors.red),
+                          style: TextStyle(color: Colors.red),
                         ),
                       );
                     }
 
                     final threads = snapshot.data ?? _cachedThreads;
-                    final showFullLoading =
-                        snapshot.connectionState == ConnectionState.waiting &&
+                    final showFullLoading = snapshot.connectionState == ConnectionState.waiting &&
                         (threads == null || threads.isEmpty);
 
                     if (threads == null || threads.isEmpty) {
                       if (showFullLoading) {
-                        return const Center(child: CircularProgressIndicator());
+                        return Center(child: CircularProgressIndicator(color: iconColor));
                       }
-                      return const Center(
+                      return Center(
                         child: Text(
                           "Chưa có đoạn chat",
-                          style: TextStyle(color: Colors.white70),
+                          style: TextStyle(color: subTextColor),
                         ),
                       );
                     }
@@ -513,285 +468,202 @@ class _AppDrawerState extends State<AppDrawer> {
                             final thread = threads[index];
                             final isEditing = _editingThreadId == thread.id;
                             return ListTile(
-                              leading: const Icon(
+                              leading: Icon(
                                 Icons.chat_bubble_outline,
-                                color: Colors.white,
+                                color: iconColor,
                                 size: 22,
                               ),
-                              title:
-                                  isEditing
-                                      ? TextField(
-                                        controller: _renameController,
-                                        autofocus: true,
-                                        decoration: const InputDecoration(
-                                          hintText: "Nhập tên chat",
-                                          isDense: true,
+                              title: isEditing
+                                  ? TextField(
+                                controller: _renameController,
+                                autofocus: true,
+                                decoration: InputDecoration(
+                                  hintText: "Nhập tên chat",
+                                  hintStyle: TextStyle(color: subTextColor),
+                                  isDense: true,
+                                  border: UnderlineInputBorder(
+                                    borderSide: BorderSide(color: iconColor),
+                                  ),
+                                  focusedBorder: UnderlineInputBorder(
+                                    borderSide: BorderSide(color: iconColor),
+                                  ),
+                                ),
+                                style: TextStyle(color: textColor),
+                                onSubmitted: (_) => _submitInlineRename(thread),
+                              )
+                                  : Text(
+                                thread.name,
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: isEditing
+                                  ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(Icons.close, color: Colors.redAccent),
+                                    onPressed: () {
+                                      setState(() {
+                                        _editingThreadId = null;
+                                        _renameController.clear();
+                                      });
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.check, color: Colors.green),
+                                    onPressed: () => _submitInlineRename(thread),
+                                  ),
+                                ],
+                              )
+                                  : PopupMenuButton<String>(
+                                icon: Icon(Icons.more_vert, color: iconColor),
+                                color: widget.isDarkMode ? const Color(0xFF2D2D2D) : const Color(0xFFEEF3EB),
+                                onSelected: (value) async {
+                                  if (value == "rename") {
+                                    _startInlineRename(thread);
+                                  } else if (value == "delete") {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      barrierDismissible: false,
+                                      builder: (context) => AlertDialog(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
                                         ),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                        ),
-                                        onSubmitted:
-                                            (_) => _submitInlineRename(thread),
-                                      )
-                                      : Text(
-                                        thread.name,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                              subtitle: null,
-
-                              trailing:
-                                  isEditing
-                                      ? Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.close,
-                                              color: Colors.redAccent,
+                                        backgroundColor: widget.isDarkMode ? const Color(0xFF2D2D2D) : Colors.white,
+                                        title: Row(
+                                          children: [
+                                            Icon(Icons.warning_amber_rounded,
+                                                color: Colors.orange.shade600, size: 28),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Text(
+                                                "Xóa cuộc trò chuyện?",
+                                                style: TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: textColor,
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
                                             ),
-                                            onPressed: () {
-                                              setState(() {
-                                                _editingThreadId = null;
-                                                _renameController.clear();
-                                              });
-                                            },
+                                          ],
+                                        ),
+                                        content: Text(
+                                          "Điều này xóa mất cuộc trò chuyện.",
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: textColor,
                                           ),
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.check,
-                                              color: Colors.green,
+                                          maxLines: 3,
+                                          overflow: TextOverflow.ellipsis,
+                                          softWrap: true,
+                                        ),
+                                        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context, false),
+                                            style: TextButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                             ),
-                                            onPressed:
-                                                () =>
-                                                    _submitInlineRename(thread),
+                                            child: Text(
+                                              "Hủy",
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                color: subTextColor,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          ElevatedButton(
+                                            onPressed: () => Navigator.pop(context, true),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red.shade600,
+                                              foregroundColor: Colors.white,
+                                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                              elevation: 2,
+                                            ),
+                                            child: const Text(
+                                              "Xóa",
+                                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                            ),
                                           ),
                                         ],
-                                      )
-                                      : PopupMenuButton<String>(
-                                        icon: const Icon(
-                                          Icons.more_vert,
-                                          color: Colors.white,
-                                        ),
-                                        color: const Color(0xFFEEF3EB),
-                                        onSelected: (value) async {
-                                          if (value == "rename") {
-                                            _startInlineRename(thread);
-                                          } else if (value == "delete") {
-                                            final confirm = await showDialog<
-                                              bool
-                                            >(
-                                              context: context,
-                                              barrierDismissible: false,
-                                              builder:
-                                                  (context) => AlertDialog(
-                                                    shape: RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            16,
-                                                          ),
-                                                    ),
-                                                    title: Row(
-                                                      children: [
-                                                        Icon(
-                                                          Icons
-                                                              .warning_amber_rounded,
-                                                          color:
-                                                              Colors
-                                                                  .orange
-                                                                  .shade600,
-                                                          size: 28,
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 12,
-                                                        ),
-                                                        Expanded(
-                                                          child: Text(
-                                                            "Xóa cuộc trò chuyện?",
-                                                            style:
-                                                                const TextStyle(
-                                                                  fontSize: 18,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                ),
-                                                            maxLines: 2,
-                                                            overflow:
-                                                                TextOverflow
-                                                                    .ellipsis,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    content: const Text(
-                                                      "Điều này xóa mất cuộc trò chuyện.",
-                                                      style: TextStyle(
-                                                        fontSize: 16,
-                                                        color: Colors.black87,
-                                                      ),
-                                                      maxLines: 3,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      softWrap: true,
-                                                    ),
-                                                    actionsPadding:
-                                                        const EdgeInsets.fromLTRB(
-                                                          16,
-                                                          0,
-                                                          16,
-                                                          16,
-                                                        ),
-                                                    actions: [
-                                                      TextButton(
-                                                        onPressed:
-                                                            () => Navigator.pop(
-                                                              context,
-                                                              false,
-                                                            ),
-                                                        style: TextButton.styleFrom(
-                                                          padding:
-                                                              const EdgeInsets.symmetric(
-                                                                horizontal: 24,
-                                                                vertical: 12,
-                                                              ),
-                                                          shape: RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  8,
-                                                                ),
-                                                          ),
-                                                        ),
-                                                        child: const Text(
-                                                          "Hủy",
-                                                          style: TextStyle(
-                                                            fontSize: 16,
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            color: Colors.grey,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      ElevatedButton(
-                                                        onPressed:
-                                                            () => Navigator.pop(
-                                                              context,
-                                                              true,
-                                                            ),
-                                                        style: ElevatedButton.styleFrom(
-                                                          backgroundColor:
-                                                              Colors
-                                                                  .red
-                                                                  .shade600,
-                                                          foregroundColor:
-                                                              Colors.white,
-                                                          padding:
-                                                              const EdgeInsets.symmetric(
-                                                                horizontal: 24,
-                                                                vertical: 12,
-                                                              ),
-                                                          shape: RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  8,
-                                                                ),
-                                                          ),
-                                                          elevation: 2,
-                                                        ),
-                                                        child: const Text(
-                                                          "Xóa",
-                                                          style: TextStyle(
-                                                            fontSize: 16,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                            );
-
-                                            if (confirm == true) {
-                                              final deletedId = thread.id;
-
-                                              // Optimistic update: remove immediately from UI and cache
-                                              setState(() {
-                                                if (_cachedThreads != null) {
-                                                  _cachedThreads =
-                                                      _cachedThreads!
-                                                          .where(
-                                                            (t) =>
-                                                                t.id !=
-                                                                deletedId,
-                                                          )
-                                                          .toList();
-                                                }
-                                                if (_sharedThreadsCache !=
-                                                    null) {
-                                                  _sharedThreadsCache =
-                                                      _sharedThreadsCache!
-                                                          .where(
-                                                            (t) =>
-                                                                t.id !=
-                                                                deletedId,
-                                                          )
-                                                          .toList();
-                                                }
-                                                // Push updated list into FutureBuilder to render immediately
-                                                _threadsFuture = Future.value(
-                                                  _cachedThreads,
-                                                );
-                                              });
-
-                                              // Call API in background, then silently refresh from server
-                                              try {
-                                                await ThreadApi.deleteThread(
-                                                  deletedId,
-                                                );
-                                                _refreshChatList();
-                                              } catch (_) {
-                                                // Ignore errors for now as per requirement (no snackbar)
-                                              }
-                                            }
-                                          }
-                                        },
-                                        itemBuilder:
-                                            (context) => [
-                                              const PopupMenuItem(
-                                                value: "rename",
-                                                child: Text("Đổi tên"),
-                                              ),
-                                              const PopupMenuItem(
-                                                value: "delete",
-                                                child: Text("Xóa"),
-                                              ),
-                                            ],
                                       ),
-                              onTap:
-                                  isEditing
-                                      ? null
-                                      : () {
-                                        _selectThread(
-                                          context,
-                                          thread.id,
-                                          thread.name,
-                                        );
-                                        widget.onThreadSelected(thread.id);
-                                      },
+                                    );
+
+                                    if (confirm == true) {
+                                      final deletedId = thread.id;
+
+                                      setState(() {
+                                        if (_cachedThreads != null) {
+                                          _cachedThreads = _cachedThreads!.where((t) => t.id != deletedId).toList();
+                                        }
+                                        if (_sharedThreadsCache != null) {
+                                          _sharedThreadsCache = _sharedThreadsCache!.where((t) => t.id != deletedId).toList();
+                                        }
+                                        _threadsFuture = Future.value(_cachedThreads);
+                                      });
+
+                                      try {
+                                        await ThreadApi.deleteThread(deletedId);
+                                        _refreshChatList();
+                                      } catch (_) {
+                                        // Ignore errors
+                                      }
+                                    }
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    value: "rename",
+                                    child: Text("Đổi tên", style: TextStyle(color: textColor)),
+                                  ),
+                                  PopupMenuItem(
+                                    value: "delete",
+                                    child: Text("Xóa", style: TextStyle(color: textColor)),
+                                  ),
+                                ],
+                              ),
+                              onTap: isEditing ? null : () {
+                                _selectThread(context, thread.id, thread.name);
+                                widget.onThreadSelected(thread.id);
+                              },
                             );
                           },
                         ),
-                        // Spinner overlay removed as requested
+                        if (_isRefreshing)
+                          Positioned(
+                            top: 10,
+                            right: 10,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: bgColor.withOpacity(0.8),
+                                shape: BoxShape.circle,
+                              ),
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: iconColor),
+                              ),
+                            ),
+                          ),
                       ],
                     );
                   },
                 ),
               ),
 
-              const Divider(color: Colors.white24),
+              Divider(color: dividerColor),
 
               // User info
               Padding(
@@ -800,42 +672,30 @@ class _AppDrawerState extends State<AppDrawer> {
                   children: [
                     CircleAvatar(
                       radius: 24,
-                      backgroundImage:
-                          userAvatar != null && userAvatar!.isNotEmpty
-                              ? NetworkImage(userAvatar!) // ảnh từ Google/API
-                              : const AssetImage(
-                                    "assets/avata.jpeg",
-                                  ) // fallback
-                                  as ImageProvider,
+                      backgroundImage: userAvatar != null && userAvatar!.isNotEmpty
+                          ? NetworkImage(userAvatar!)
+                          : const AssetImage("assets/avata.jpeg") as ImageProvider,
                     ),
                     const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          userName ?? "",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          userEmail ?? "",
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(userName ?? "",
+                              style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                          Text(userEmail ?? "",
+                              style: TextStyle(color: subTextColor, fontSize: 12)),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              const Divider(color: Colors.white24),
+              Divider(color: dividerColor),
 
               ListTile(
-                leading: const Icon(Icons.logout, color: Colors.redAccent),
-                title: const Text(
+                leading: Icon(Icons.logout, color: Colors.redAccent),
+                title: Text(
                   "Đăng xuất",
                   style: TextStyle(
                     color: Colors.redAccent,

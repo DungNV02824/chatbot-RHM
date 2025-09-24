@@ -27,43 +27,47 @@ class ChatApi {
     final response = await http.post(
       Uri.parse(_baseUrl),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=UTF-8', // thêm UTF-8
         'accept': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({
+      body: utf8.encode(jsonEncode({ // encode UTF-8
         "message": message,
         "role": roleId,
         "session_id": sessionId,
-      }),
+      })),
     );
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      // decode UTF-8 để chắc chắn tiếng Việt không bị lỗi
+      return jsonDecode(utf8.decode(response.bodyBytes));
     } else {
       throw Exception(
-        "Failed to send message: ${response.statusCode} - ${response.body}",
+        "Failed to send message: ${response.statusCode} - ${utf8.decode(response.bodyBytes)}",
       );
     }
   }
 
   static Future<List<Map<String, dynamic>>> getThreadDetail(
-    String threadId,
-  ) async {
+      String threadId,
+      ) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("auth_token");
 
     final response = await http.get(
       Uri.parse("${AppConstants.baseUrl}threads/$threadId"),
-      headers: {"Authorization": "Bearer $token"},
+      headers: {
+        "Authorization": "Bearer $token",
+        "accept": "application/json",
+      },
     );
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(utf8.decode(response.bodyBytes)); // decode UTF-8
       // giả sử API trả về { "messages": [ {role, content}, ...] }
       return List<Map<String, dynamic>>.from(data["messages"]);
     } else {
-      throw Exception("Failed to load thread: ${response.body}");
+      throw Exception("Failed to load thread: ${utf8.decode(response.bodyBytes)}");
     }
   }
 }

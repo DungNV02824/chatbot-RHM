@@ -8,12 +8,14 @@ import '../../core/constants.dart';
 class InputField extends StatefulWidget {
   final Function(String) onSend;
   final bool isDarkMode;
-  final Function(String id, String name)? onThreadCreated; // 👈 thêm callback
+  final bool isWaitingForResponse; // 👈 Nhận trạng thái từ parent
+  final Function(String id, String name)? onThreadCreated;
 
   const InputField({
     super.key,
     required this.onSend,
     this.isDarkMode = true,
+    this.isWaitingForResponse = false, // 👈 Thêm tham số mới
     this.onThreadCreated,
   });
 
@@ -24,19 +26,20 @@ class InputField extends StatefulWidget {
 class _InputFieldState extends State<InputField> {
   final _controller = TextEditingController();
 
-  void _handleSend() {
-    if (_controller.text.trim().isEmpty) return;
-    widget.onSend(_controller.text.trim());
+  void _handleSend() async {
+    if (_controller.text.trim().isEmpty || widget.isWaitingForResponse) return; // 👈 Sử dụng trạng thái từ parent
+
+    final message = _controller.text.trim();
     _controller.clear();
+
+    widget.onSend(message); // 👈 Chỉ gọi onSend, không quản lý trạng thái ở đây
   }
 
   Future<void> _createThread() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("auth_token");
     if (token == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Bạn chưa đăng nhập!")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bạn chưa đăng nhập!")));
       return;
     }
 
@@ -53,7 +56,7 @@ class _InputFieldState extends State<InputField> {
       final data = jsonDecode(response.body);
       final threadId = data["id"];
       await prefs.setString("thread_id", threadId);
-      await prefs.remove("thread_name"); // sẽ auto đặt theo tin nhắn đầu tiên
+      await prefs.remove("thread_name");
 
       if (widget.onThreadCreated != null) {
         widget.onThreadCreated!(threadId, "");
@@ -83,13 +86,11 @@ class _InputFieldState extends State<InputField> {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor =
-        widget.isDarkMode
-            ? Colors.black.withOpacity(0.85)
-            : Colors.white.withOpacity(0.9);
+    final backgroundColor = widget.isDarkMode
+        ? Colors.black.withOpacity(0.85)
+        : Colors.white.withOpacity(0.9);
 
-    final inputColor =
-        widget.isDarkMode ? Colors.grey[900]! : Colors.grey[200]!;
+    final inputColor = widget.isDarkMode ? Colors.grey[900]! : Colors.grey[200]!;
 
     final iconColor = widget.isDarkMode ? Colors.white : Colors.black87;
 
@@ -97,7 +98,7 @@ class _InputFieldState extends State<InputField> {
       SystemUiOverlayStyle(
         systemNavigationBarColor: backgroundColor,
         systemNavigationBarIconBrightness:
-            widget.isDarkMode ? Brightness.light : Brightness.dark,
+        widget.isDarkMode ? Brightness.light : Brightness.dark,
       ),
     );
 
@@ -119,15 +120,6 @@ class _InputFieldState extends State<InputField> {
           offset: const Offset(0, 8),
           child: Row(
             children: [
-              // Nút "+"
-              Material(
-                color: inputColor,
-                shape: const CircleBorder(),
-                child: IconButton(
-                  icon: Icon(Icons.add, color: iconColor),
-                  onPressed: _createThread,
-                ),
-              ),
               const SizedBox(width: 8),
 
               // Ô nhập
@@ -140,6 +132,7 @@ class _InputFieldState extends State<InputField> {
                   ),
                   child: TextField(
                     controller: _controller,
+                    enabled: !widget.isWaitingForResponse, // 👈 Sử dụng từ parent
                     style: TextStyle(
                       color: widget.isDarkMode ? Colors.white : Colors.black,
                     ),
@@ -148,16 +141,18 @@ class _InputFieldState extends State<InputField> {
                     minLines: 1,
                     maxLines: 6,
                     decoration: InputDecoration(
-                      hintText: "Nhập tin nhắn...",
+                      hintText: widget.isWaitingForResponse
+                          ? "Đang chờ phản hồi..."
+                          : "Nhập tin nhắn...",
                       hintStyle: TextStyle(
-                        color:
-                            widget.isDarkMode ? Colors.white70 : Colors.black54,
+                        color: widget.isDarkMode
+                            ? Colors.white70
+                            : Colors.black54,
                       ),
                       border: InputBorder.none,
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    // Cho phép xuống dòng khi nhấn Enter; dùng nút gửi để gửi
                   ),
                 ),
               ),
@@ -166,7 +161,9 @@ class _InputFieldState extends State<InputField> {
               // Nút gửi
               Container(
                 decoration: BoxDecoration(
-                  color: widget.isDarkMode ? Colors.blueAccent : Colors.black,
+                  color: widget.isWaitingForResponse
+                      ? Colors.grey // nút xám khi chờ
+                      : (widget.isDarkMode ? Colors.blueAccent : Colors.black),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
@@ -178,7 +175,7 @@ class _InputFieldState extends State<InputField> {
                 ),
                 child: IconButton(
                   icon: const Icon(Icons.arrow_upward, color: Colors.white),
-                  onPressed: _handleSend,
+                  onPressed: widget.isWaitingForResponse ? null : _handleSend, // 👈 Sử dụng từ parent
                 ),
               ),
             ],

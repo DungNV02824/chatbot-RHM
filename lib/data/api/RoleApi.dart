@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../core/constants.dart';
+
 class Role {
   final String id;
   final String name;
@@ -21,12 +22,12 @@ class RoleApi {
   static Future<List<Role>> fetchRoles() async {
     final response = await http.get(Uri.parse("${AppConstants.baseUrl}roles"));
     if (response.statusCode == 200) {
-      final data = json.decode(response.body);
+      // 👇 Giải mã UTF-8 để tránh lỗi tiếng Việt
+      final data = json.decode(utf8.decode(response.bodyBytes));
       List roles = data["roles"];
       return roles.map((r) => Role.fromJson(r)).toList();
     } else {
-      throw Exception("Lỗi tải roles");
+      throw Exception("Lỗi tải roles: ${response.statusCode}");
     }
   }
-
 }

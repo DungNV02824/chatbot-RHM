@@ -31,21 +31,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final response = await http.post(
         Uri.parse("${AppConstants.baseUrl}auth/login"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(payload),
+        headers: {"Content-Type": "application/json; charset=UTF-8"}, // ✅ UTF-8
+        body: utf8.encode(jsonEncode(payload)), // ✅ encode UTF-8
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(utf8.decode(response.bodyBytes)); // ✅ decode UTF-8
         await _handleLoginSuccess(data);
       } else {
-        final errorData = jsonDecode(response.body);
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
         _showError(errorData['detail'] ?? "Đăng nhập thất bại");
       }
     } catch (e) {
       _showError("Lỗi kết nối: $e");
     }
   }
+
 
   /// Đăng nhập bằng Email + Password
   Future<void> loginWithEmailPassword() async {
@@ -93,17 +94,18 @@ class _LoginScreenState extends State<LoginScreen> {
       // Gửi lên đúng endpoint /auth/google
       final response = await http.post(
         Uri.parse("${AppConstants.baseUrl}auth/google"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"googleIdToken": googleIdToken}),
+        headers: {"Content-Type": "application/json; charset=UTF-8"},
+        body: utf8.encode(jsonEncode({"googleIdToken": googleIdToken})),
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         await _handleLoginSuccess(data);
       } else {
-        final errorData = jsonDecode(response.body);
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
         _showError(errorData['detail'] ?? "Đăng nhập Google thất bại");
       }
+
     } catch (e) {
       _showError("Lỗi kết nối: $e");
     } finally {

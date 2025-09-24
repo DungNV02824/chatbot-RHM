@@ -35,16 +35,16 @@ class RoleSettingsScreen extends StatelessWidget {
     final response = await http.post(
       Uri.parse("${AppConstants.baseUrl}threads/"),
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/json; charset=UTF-8", // ✅ thêm charset UTF-8
         "Authorization": "Bearer $token",
       },
-      body: jsonEncode({
+      body: utf8.encode(jsonEncode({
         "name": "Cuộc trò chuyện mới",
-      }),
+      })), // ✅ encode UTF-8
     );
 
     if (response.statusCode == 201) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(utf8.decode(response.bodyBytes)); // ✅ decode UTF-8
       final threadId = data["id"];
       final threadName = data["name"];
 
@@ -54,24 +54,23 @@ class RoleSettingsScreen extends StatelessWidget {
         const SnackBar(
           content: Text(
             "Tạo vai trò mới thành công",
-            style: TextStyle(color: Colors.white), // chữ trắng cho dễ nhìn
+            style: TextStyle(color: Colors.white),
           ),
-          backgroundColor: Colors.blueAccent, // nền xanh
-          behavior: SnackBarBehavior.floating, // tuỳ chọn: nổi lên
-          margin: EdgeInsets.all(12), // tuỳ chọn: bo lề
+          backgroundColor: Colors.blueAccent,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.all(12),
         ),
       );
-
 
       // Gọi callback nếu có
       if (onThreadCreated != null) {
         onThreadCreated!(threadId, threadName);
       }
 
-      // 👉 Chuyển đến màn hình chat (giả sử là ChatScreen)
+      // 👉 Chuyển đến màn hình chat
       Navigator.pushReplacementNamed(
         context,
-        "/chat", // route màn hình chat của bạn
+        "/chat",
         arguments: {
           "threadId": threadId,
           "threadName": threadName,
@@ -79,7 +78,7 @@ class RoleSettingsScreen extends StatelessWidget {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Lỗi tạo thread: ${response.body}")),
+        SnackBar(content: Text("Lỗi tạo thread: ${utf8.decode(response.bodyBytes)}")), // ✅ decode UTF-8
       );
     }
   }
