@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "594697215866",
+    "project_id": "rhm-chatbot-d94d2",
+    "storage_bucket": "rhm-chatbot-d94d2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:594697215866:android:dcf3ae98baf146a69b00c3",
+        "android_client_info": {
+          "package_name": "com.example.chatbot"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "594697215866-4j9ehgt7m9jermmmmkb7nmtvegkofb5i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.chatbot",
+            "certificate_hash": "c065d2906baf3130e8a1d4ec994c4984cc1b41f3"
+          }
+        },
+        {
+          "client_id": "594697215866-t9vp6foqv62kc3cfoaivrp0aqshu0oql.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAk-4Gi8G-r-2LXK2CSqWNQCjya6MVTglo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "594697215866-t9vp6foqv62kc3cfoaivrp0aqshu0oql.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
